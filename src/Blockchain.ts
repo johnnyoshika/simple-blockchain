@@ -5,45 +5,45 @@ const SHA256 = (message: string) =>
 
 export class Block {
   constructor(
-    readonly timestamp = '',
-    readonly data = {} as Record<string, any>,
+    readonly timestamp: number,
+    readonly prevHash = '',
+    readonly nonce = 0,
+    public data = {} as Record<string, any>,
   ) {
     this.hash = this.getHash();
-    this.prevHash = '';
-    this.nonce = 0;
   }
 
   hash: string;
-  prevHash: string;
-  nonce: number;
 
   getHash = () =>
     SHA256(
       this.prevHash +
-        this.timestamp +
+        this.timestamp.toString() +
         JSON.stringify(this.data) +
         this.nonce,
     );
 
-  mine = (difficulty: number) => {
+  mine = (difficulty: number): Block => {
     // Loop until the substring of the hash with length of 0, <difficulty>
     // is equal to the string 0...000 with length of <difficulty>
-    while (
-      this.hash.substring(0, difficulty) !==
+    if (
+      this.hash.substring(0, difficulty) ===
       Array(difficulty + 1).join('0')
-    ) {
-      // We increases our nonce so that we can get a whole different hash.
-      this.nonce++;
-      // Update our new hash with the new nonce value.
-      this.hash = this.getHash();
-    }
-    console.log(`Block mined: ${this.hash}`);
+    )
+      return this;
+
+    return new Block(
+      this.timestamp,
+      this.prevHash,
+      this.nonce + 1,
+      this.data,
+    ).mine(difficulty);
   };
 }
 
 export class Blockchain {
   constructor() {
-    this.chain = [new Block(Date.now().toString())];
+    this.chain = [new Block(Date.now())];
     this.difficulty = 1;
   }
 
@@ -54,12 +54,13 @@ export class Blockchain {
     return this.chain[this.chain.length - 1];
   }
 
-  addBlock(block: Block) {
-    block.prevHash = this.lastBlock.hash;
-    block.hash = block.getHash();
-    block.mine(this.difficulty);
-    this.chain.push(block);
-  }
+  addBlock = (data: Record<string, any>) => {
+    this.chain.push(
+      new Block(Date.now(), this.lastBlock.hash, 0, data).mine(
+        this.difficulty,
+      ),
+    );
+  };
 
   isValid = () => {
     for (let i = 1; i < this.chain.length; i++) {
